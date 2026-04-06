@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ayan Goswami — Source Code Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0d0d14;
+      --surface:   #14141f;
+      --surface2:  #1c1c2e;
+      --border:    rgba(255,255,255,.07);
+      --text:      #e2e0f0;
+      --muted:     #6e6b8a;
+      --primary:   #7c5cfc;
+      --accent:    #f472b6;
+      --green:     #4ade80;
+      --yellow:    #fbbf24;
+      --blue:      #60a5fa;
+      --red:       #f87171;
+      --orange:    #fb923c;
+      --cyan:      #22d3ee;
+      --mono:      'JetBrains Mono', monospace;
+      --sans:      'DM Sans', sans-serif;
+      --display:   'Syne', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ── */
+    header {
+      padding: 3rem 5% 2rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .logo {
+      font-family: var(--display);
+      font-size: 1.6rem;
+      font-weight: 800;
+      background: linear-gradient(120deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header-meta {
+      font-size: .8rem;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+    .header-meta span { color: var(--primary); }
+
+    /* ── MAIN LAYOUT ── */
+    main {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 3rem 5% 5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 3rem;
+    }
+
+    /* ── PAGE TITLE ── */
+    .page-title {
+      font-family: var(--display);
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: .5rem;
+    }
+    .page-sub {
+      color: var(--muted);
+      font-size: .95rem;
+    }
+    .page-sub strong { color: var(--accent); font-weight: 600; }
+
+    /* ── TABS ── */
+    .tab-bar {
+      display: flex;
+      gap: .25rem;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: .65rem 1.4rem;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      font-family: var(--mono);
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .2s ease;
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* ── CODE BLOCK WRAPPER ── */
+    .code-panel { display: none; }
+    .code-panel.active { display: block; }
+
+    .code-header {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 12px 12px 0 0;
+      padding: .75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .traffic-lights {
+      display: flex;
+      gap: 6px;
+    }
+    .tl {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+    }
+    .tl-r { background: #ff5f57; }
+    .tl-y { background: #febc2e; }
+    .tl-g { background: #28c840; }
+
+    .file-path {
+      font-family: var(--mono);
+      font-size: .78rem;
+      color: var(--muted);
+      flex: 1;
+      text-align: center;
+    }
+    .file-path span { color: var(--text); }
+
+    .copy-btn {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .4rem .9rem;
+      background: rgba(124,92,252,.12);
+      border: 1px solid rgba(124,92,252,.3);
+      border-radius: 6px;
+      color: var(--primary);
+      font-family: var(--sans);
+      font-size: .78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .copy-btn:hover {
+      background: rgba(124,92,252,.25);
+      border-color: var(--primary);
+    }
+    .copy-btn.copied {
+      background: rgba(74,222,128,.12);
+      border-color: rgba(74,222,128,.4);
+      color: var(--green);
+    }
+    .copy-icon { font-size: .9rem; }
+
+    /* ── PRE / CODE ── */
+    .code-scroll {
+      border: 1px solid var(--border);
+      border-radius: 0 0 12px 12px;
+      overflow: auto;
+      max-height: 72vh;
+      background: var(--surface);
+      position: relative;
+    }
+    .code-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .code-scroll::-webkit-scrollbar-track { background: transparent; }
+    .code-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 3px; }
+
+    pre {
+      margin: 0;
+      padding: 1.5rem 1.5rem 1.5rem 0;
+      counter-reset: line;
+    }
+    code {
+      font-family: var(--mono);
+      font-size: .82rem;
+      line-height: 1.75;
+      display: block;
+      white-space: pre;
+    }
+
+    /* Line numbers */
+    .line {
+      display: flex;
+      min-width: max-content;
+    }
+    .line:hover { background: rgba(255,255,255,.025); }
+    .ln {
+      display: inline-block;
+      min-width: 3.2rem;
+      padding-right: 1.5rem;
+      text-align: right;
+      color: #3d3b5c;
+      user-select: none;
+      flex-shrink: 0;
+      position: sticky;
+      left: 0;
+      background: var(--surface);
+    }
+    .lc { flex: 1; padding-right: 2rem; }
+
+    /* ── SYNTAX TOKENS ── */
+    .t-kw   { color: var(--primary); }
+    .t-str  { color: var(--green); }
+    .t-num  { color: var(--orange); }
+    .t-cmt  { color: #4a4870; font-style: italic; }
+    .t-fn   { color: var(--yellow); }
+    .t-tag  { color: var(--red); }
+    .t-attr { color: var(--cyan); }
+    .t-val  { color: var(--green); }
+    .t-sel  { color: var(--accent); }
+    .t-prop { color: var(--blue); }
+    .t-punc { color: var(--muted); }
+    .t-id   { color: var(--cyan); }
+    .t-cls  { color: var(--yellow); }
+
+    /* ── STATS BAR ── */
+    .stats-row {
+      display: flex;
+      gap: 2rem;
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--muted);
+      padding: .6rem 1.25rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      flex-wrap: wrap;
+    }
+    .stats-row span { color: var(--text); }
+
+    /* ── COPY ALL ── */
+    .copy-all-bar {
+      display: flex;
+      justify-content: flex-end;
+      gap: .75rem;
+      flex-wrap: wrap;
+    }
+    .btn-ghost {
+      padding: .6rem 1.4rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: .83rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+    }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 2rem 5%;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: .8rem;
+    }
+    footer strong { color: var(--primary); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">AG / Source</div>
+  <div class="header-meta">3 files &nbsp;·&nbsp; <span>index.html</span> &nbsp;+&nbsp; <span>style.css</span> &nbsp;+&nbsp; <span>script.js</span></div>
+</header>
+
+<main>
+  <div>
+    <h1 class="page-title">Source Code Viewer</h1>
+    <p class="page-sub">Ayan Goswami — Portfolio &nbsp;·&nbsp; <strong>Click any tab, then copy.</strong></p>
+  </div>
+
+  <!-- TABS -->
+  <div>
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="html" onclick="switchTab('html')">
+        <span class="tab-dot" style="background:#f87171"></span>index.html
+      </button>
+      <button class="tab-btn" data-tab="css" onclick="switchTab('css')">
+        <span class="tab-dot" style="background:#60a5fa"></span>style.css
+      </button>
+      <button class="tab-btn" data-tab="js" onclick="switchTab('js')">
+        <span class="tab-dot" style="background:#fbbf24"></span>script.js
+      </button>
+    </div>
+
+    <!-- HTML PANEL -->
+    <div class="code-panel active" id="panel-html">
+      <div class="code-header">
+        <div class="traffic-lights"><span class="tl tl-r"></span><span class="tl tl-y"></span><span class="tl tl-g"></span></div>
+        <div class="file-path">portfolio / <span>index.html</span></div>
+        <button class="copy-btn" id="copy-html" onclick="copyCode('html')">
+          <span class="copy-icon">⧉</span> Copy
+        </button>
+      </div>
+      <div class="code-scroll">
+        <pre><code id="code-html"></code></pre>
+      </div>
+      <div class="stats-row" id="stats-html"></div>
+    </div>
+
+    <!-- CSS PANEL -->
+    <div class="code-panel" id="panel-css">
+      <div class="code-header">
+        <div class="traffic-lights"><span class="tl tl-r"></span><span class="tl tl-y"></span><span class="tl tl-g"></span></div>
+        <div class="file-path">portfolio / <span>style.css</span></div>
+        <button class="copy-btn" id="copy-css" onclick="copyCode('css')">
+          <span class="copy-icon">⧉</span> Copy
+        </button>
+      </div>
+      <div class="code-scroll">
+        <pre><code id="code-css"></code></pre>
+      </div>
+      <div class="stats-row" id="stats-css"></div>
+    </div>
+
+    <!-- JS PANEL -->
+    <div class="code-panel" id="panel-js">
+      <div class="code-header">
+        <div class="traffic-lights"><span class="tl tl-r"></span><span class="tl tl-y"></span><span class="tl tl-g"></span></div>
+        <div class="file-path">portfolio / <span>script.js</span></div>
+        <button class="copy-btn" id="copy-js" onclick="copyCode('js')">
+          <span class="copy-icon">⧉</span> Copy
+        </button>
+      </div>
+      <div class="code-scroll">
+        <pre><code id="code-js"></code></pre>
+      </div>
+      <div class="stats-row" id="stats-js"></div>
+    </div>
+  </div>
+</main>
+
+<footer>Built with ♥ — <strong>Ayan Goswami</strong> Portfolio Source Viewer</footer>
+
+<script>
+// ── RAW SOURCE DATA ─────────────────────────────────────────
+const sources = {};
+
+sources.html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ayan Goswami - Assistant System Engineer Trainee @ TCS | B.Tech ECE, Techno Main Salt Lake">
+    <title>Ayan Goswami | Portfolio</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- ===== HEADER / HERO ===== -->
+    <header id="hero">
+        <div class="header-bg-shapes">
+            <span class="shape shape-1"></span>
+            <span class="shape shape-2"></span>
+            <span class="shape shape-3"></span>
+        </div>
+
+        <nav id="navbar">
+            <a href="#hero" class="nav-logo">AG</a>
+            <ul class="nav-links">
+                <li><a href="#about">About</a></li>
+                <li><a href="#education">Education</a></li>
+                <li><a href="#skills">Skills</a></li>
+                <li><a href="#projects">Projects</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+            <button id="theme-toggle" aria-label="Toggle dark/light theme" title="Toggle Theme">
+                <span class="theme-icon">🌙</span>
+            </button>
+        </nav>
+
+        <div class="hero-content">
+            <div class="hero-avatar">
+                <div class="avatar-ring"></div>
+                <div class="avatar-placeholder" id="avatar-initials">AG</div>
+            </div>
+            <p class="hero-greeting">Hello, I'm</p>
+            <h1 class="hero-name" id="hero-name">Ayan Goswami</h1>
+            <p class="hero-tagline" id="hero-tagline">Assistant System Engineer Trainee @ TCS</p>
+            <div class="hero-cta">
+                <a href="#contact" class="btn btn-primary">Get In Touch</a>
+                <a href="#projects" class="btn btn-outline">View Work</a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-number" data-target="5">0</span>
+                    <span class="stat-label">Projects</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" data-target="6">0</span>
+                    <span class="stat-label">Technologies</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" data-target="1">0</span>
+                    <span class="stat-label">Year @ TCS</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="scroll-indicator">
+            <span></span>
+        </div>
+    </header>
+
+    <!-- ===== ABOUT SECTION ===== -->
+    <section id="about" class="section">
+        <div class="container">
+            <h2 class="section-title">About Me</h2>
+            <div class="about-grid">
+                <div class="about-text">
+                    <p>
+                        B.Tech graduate in Electronics &amp; Communication Engineering with a strong focus
+                        on programming, embedded systems, and machine learning. Currently working as an
+                        Assistant System Engineer Trainee at <strong>Tata Consultancy Services (TCS)</strong>.
+                    </p>
+                    <p>
+                        Gained hands-on experience in developing real-world projects involving Arduino,
+                        sensor integration, and data-driven applications. Passionate about building
+                        solutions that bridge hardware and software.
+                    </p>
+                    <div class="about-details">
+                        <div class="detail-item">
+                            <span class="detail-icon">📍</span>
+                            <span>Kolkata, India</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-icon">💼</span>
+                            <span>ASE Trainee @ Tata Consultancy Services</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-icon">🎓</span>
+                            <span>B.Tech ECE — Techno Main Salt Lake (2022–2026)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="about-card glass-card">
+                    <h3>Academic Highlights</h3>
+                    <ul class="facts-list" id="facts-list">
+                        <li class="fact-item" data-index="0">🤖 Built Smart Vocalizer for gesture-to-speech using Arduino</li>
+                        <li class="fact-item" data-index="1">🧠 Developed ML-based Disease Prediction System (SVM &amp; Logistic Regression)</li>
+                        <li class="fact-item" data-index="2">⚡ Working on EV Charging Platform (Java-based backend)</li>
+                        <li class="fact-item" data-index="3">🔬 Hands-on with MPU6050, sensors &amp; embedded systems</li>
+                    </ul>
+                    <button class="btn btn-small" id="add-fact-btn">+ Add a Fact</button>
+                    <div class="add-fact-form hidden" id="add-fact-form">
+                        <input type="text" id="new-fact-input" placeholder="Type a fun fact…" maxlength="60">
+                        <div class="form-actions">
+                            <button class="btn btn-small btn-primary" id="save-fact-btn">Save</button>
+                            <button class="btn btn-small btn-ghost" id="cancel-fact-btn">Cancel</button>
+                        </div>
+                        <p class="error-msg hidden" id="fact-error"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== EDUCATION SECTION ===== -->
+    <section id="education" class="section section-alt">
+        <div class="container">
+            <h2 class="section-title">Education</h2>
+            <div class="education-card glass-card">
+                <div class="edu-header">
+                    <div class="edu-icon">🎓</div>
+                    <div>
+                        <h3 class="edu-degree">B.Tech in Electronics &amp; Communication Engineering</h3>
+                        <p class="edu-college">Techno Main Salt Lake, Kolkata</p>
+                        <p class="edu-duration">2022 – 2026 &nbsp;•&nbsp; Completed</p>
+                    </div>
+                </div>
+                <div class="edu-body">
+                    <h4 class="edu-subtitle">🧠 Key Coursework</h4>
+                    <div class="coursework-grid" id="coursework-grid">
+                        <span class="coursework-tag">Data Structures &amp; Algorithms</span>
+                        <span class="coursework-tag">Object-Oriented Programming (Java)</span>
+                        <span class="coursework-tag">Digital Electronics</span>
+                        <span class="coursework-tag">Microprocessors &amp; Microcontrollers</span>
+                        <span class="coursework-tag">Signal Processing</span>
+                        <span class="coursework-tag">Machine Learning Basics</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SKILLS SECTION ===== -->
+    <section id="skills" class="section">
+        <div class="container">
+            <h2 class="section-title">Technical Focus</h2>
+            <div class="skills-filter">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="programming">Programming</button>
+                <button class="filter-btn" data-filter="web">Web Dev</button>
+                <button class="filter-btn" data-filter="ml">Machine Learning</button>
+                <button class="filter-btn" data-filter="embedded">Embedded</button>
+                <button class="filter-btn" data-filter="tools">Tools</button>
+            </div>
+            <div class="skills-grid" id="skills-grid">
+                <!-- Skills are rendered dynamically by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== PROJECTS SECTION ===== -->
+    <section id="projects" class="section">
+        <div class="container">
+            <h2 class="section-title">Projects</h2>
+            <div class="projects-grid" id="projects-grid">
+                <!-- Projects rendered by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== CONTACT SECTION ===== -->
+    <section id="contact" class="section section-alt">
+        <div class="container">
+            <h2 class="section-title">Get In Touch</h2>
+            <p class="section-subtitle">Have a question or want to work together? Drop me a message!</p>
+            <form id="contact-form" class="contact-form glass-card" novalidate>
+                <div class="form-group">
+                    <label for="contact-name">Full Name</label>
+                    <input type="text" id="contact-name" placeholder="John Doe" required>
+                    <p class="error-msg hidden" id="name-error"></p>
+                </div>
+                <div class="form-group">
+                    <label for="contact-email">Email Address</label>
+                    <input type="email" id="contact-email" placeholder="john@example.com" required>
+                    <p class="error-msg hidden" id="email-error"></p>
+                </div>
+                <div class="form-group">
+                    <label for="contact-subject">Subject</label>
+                    <input type="text" id="contact-subject" placeholder="Project Inquiry" required>
+                    <p class="error-msg hidden" id="subject-error"></p>
+                </div>
+                <div class="form-group full-width">
+                    <label for="contact-message">Message</label>
+                    <textarea id="contact-message" rows="5" placeholder="Tell me about your project…" required></textarea>
+                    <p class="error-msg hidden" id="message-error"></p>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full" id="submit-btn">
+                    <span class="btn-text">Send Message</span>
+                    <span class="btn-loader hidden"></span>
+                </button>
+                <div class="form-success hidden" id="form-success">
+                    <span class="success-icon">✅</span>
+                    <p>Thank you! Your message has been sent successfully.</p>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+    <footer id="footer">
+        <div class="container footer-content">
+            <div class="footer-brand">
+                <span class="nav-logo">AG</span>
+                <p>&copy; <span id="footer-year"></span> Ayan Goswami. All rights reserved.</p>
+            </div>
+            <div class="footer-links">
+                <a href="#about">About</a>
+                <a href="#education">Education</a>
+                <a href="#skills">Skills</a>
+                <a href="#projects">Projects</a>
+                <a href="#contact">Contact</a>
+            </div>
+            <div class="footer-socials">
+                <a href="#" class="social-link" title="GitHub" aria-label="GitHub">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                </a>
+                <a href="#" class="social-link" title="LinkedIn" aria-label="LinkedIn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                </a>
+                <a href="#" class="social-link" title="Twitter / X" aria-label="Twitter">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                </a>
+            </div>
+        </div>
+        <div class="footer-wave">
+            <svg viewBox="0 0 1440 60" preserveAspectRatio="none">
+                <path d="M0,30 C360,60 720,0 1080,30 C1260,45 1380,20 1440,30 L1440,60 L0,60 Z" fill="currentColor"/>
+            </svg>
+        </div>
+    </footer>
+
+    <!-- Back-to-top button -->
+    <button id="back-to-top" class="back-to-top hidden" aria-label="Back to top" title="Back to top">↑</button>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="script.js"><\/script>
+</body>
+</html>`;
+
+sources.css = `/* ============================================
+   CSS CUSTOM PROPERTIES / DESIGN TOKENS
+   ============================================ */
+:root {
+    /* Colors – Light theme */
+    --clr-bg:          #f4f2ee;
+    --clr-bg-alt:      #eae7e0;
+    --clr-surface:     #ffffff;
+    --clr-text:        #1a1a2e;
+    --clr-text-muted:  #6b6b80;
+    --clr-primary:     #6c3ce0;
+    --clr-primary-rgb: 108, 60, 224;
+    --clr-primary-light: #8b5cf6;
+    --clr-accent:      #f472b6;
+    --clr-accent-rgb:  244, 114, 182;
+    --clr-success:     #10b981;
+    --clr-error:       #ef4444;
+    --clr-border:      rgba(0,0,0,.08);
+    --clr-glass:       rgba(255,255,255,.55);
+    --clr-glass-border:rgba(255,255,255,.3);
+
+    /* Typography */
+    --ff-base: 'Inter', system-ui, -apple-system, sans-serif;
+    --fs-xs:   .75rem;
+    --fs-sm:   .875rem;
+    --fs-md:   1rem;
+    --fs-lg:   1.125rem;
+    --fs-xl:   1.5rem;
+    --fs-2xl:  2rem;
+    --fs-3xl:  2.75rem;
+    --fs-4xl:  3.5rem;
+    --fw-light: 300;
+    --fw-regular: 400;
+    --fw-medium: 500;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+    --fw-extrabold: 800;
+
+    /* Spacing */
+    --space-xs:  .5rem;
+    --space-sm:  .75rem;
+    --space-md:  1rem;
+    --space-lg:  1.5rem;
+    --space-xl:  2rem;
+    --space-2xl: 3rem;
+    --space-3xl: 4.5rem;
+
+    /* Misc */
+    --radius-sm:  .5rem;
+    --radius-md:  .75rem;
+    --radius-lg:  1rem;
+    --radius-xl:  1.5rem;
+    --shadow-sm:  0 1px 3px rgba(0,0,0,.06);
+    --shadow-md:  0 4px 16px rgba(0,0,0,.08);
+    --shadow-lg:  0 12px 40px rgba(0,0,0,.1);
+    --shadow-glow:0 0 30px rgba(var(--clr-primary-rgb),.25);
+    --transition: .3s cubic-bezier(.4,0,.2,1);
+    --max-width:  1100px;
+}
+
+/* ---------- Dark theme ---------- */
+[data-theme="dark"] {
+    --clr-bg:          #0f0f1a;
+    --clr-bg-alt:      #1a1a2e;
+    --clr-surface:     #16162a;
+    --clr-text:        #e8e6f0;
+    --clr-text-muted:  #9e9bb5;
+    --clr-border:      rgba(255,255,255,.08);
+    --clr-glass:       rgba(22,22,42,.65);
+    --clr-glass-border:rgba(255,255,255,.08);
+    --shadow-sm:  0 1px 3px rgba(0,0,0,.3);
+    --shadow-md:  0 4px 16px rgba(0,0,0,.4);
+    --shadow-lg:  0 12px 40px rgba(0,0,0,.45);
+}
+
+/* ============================================
+   RESET & BASE
+   ============================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+body {
+    font-family: var(--ff-base);
+    font-size: var(--fs-md);
+    color: var(--clr-text);
+    background: var(--clr-bg);
+    line-height: 1.7;
+    overflow-x: hidden;
+    transition: background var(--transition), color var(--transition);
+}
+a { color: var(--clr-primary); text-decoration: none; transition: color var(--transition); }
+a:hover { color: var(--clr-primary-light); }
+img { max-width: 100%; display: block; }
+ul { list-style: none; }
+
+/* ============================================
+   REUSABLE
+   ============================================ */
+.container { width: 90%; max-width: var(--max-width); margin: 0 auto; }
+.hidden { display: none !important; }
+
+.section {
+    padding: var(--space-3xl) 0;
+    position: relative;
+}
+.section-alt { background: var(--clr-bg-alt); }
+
+.section-title {
+    font-size: var(--fs-3xl);
+    font-weight: var(--fw-extrabold);
+    text-align: center;
+    margin-bottom: var(--space-sm);
+    background: linear-gradient(135deg, var(--clr-primary), var(--clr-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.section-subtitle {
+    text-align: center;
+    color: var(--clr-text-muted);
+    margin-bottom: var(--space-2xl);
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.glass-card {
+    background: var(--clr-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--clr-glass-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-xl);
+    box-shadow: var(--shadow-md);
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    padding: .75rem 1.75rem;
+    font-family: var(--ff-base);
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+.btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,.15);
+    transform: translateX(-110%);
+    transition: transform .4s ease;
+}
+.btn:hover::after { transform: translateX(0); }
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--clr-primary), var(--clr-accent));
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(var(--clr-primary-rgb),.35);
+}
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(var(--clr-primary-rgb),.45);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--clr-primary);
+    border-color: var(--clr-primary);
+}
+.btn-outline:hover {
+    background: var(--clr-primary);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+.btn-small { padding: .45rem 1rem; font-size: var(--fs-xs); }
+.btn-ghost {
+    background: transparent;
+    color: var(--clr-text-muted);
+    border: 1px solid var(--clr-border);
+}
+.btn-ghost:hover { background: var(--clr-border); color: var(--clr-text); }
+.btn-full { width: 100%; }
+
+/* Loader spinner inside btn */
+.btn-loader {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================
+   NAVBAR
+   ============================================ */
+#navbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-md) 5%;
+    z-index: 1000;
+    transition: background var(--transition), box-shadow var(--transition), padding var(--transition);
+}
+#navbar.scrolled {
+    background: var(--clr-glass);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-sm) 5%;
+}
+.nav-logo {
+    font-size: var(--fs-xl);
+    font-weight: var(--fw-extrabold);
+    background: linear-gradient(135deg, var(--clr-primary), var(--clr-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.nav-links {
+    display: flex;
+    gap: var(--space-lg);
+}
+.nav-links a {
+    color: var(--clr-text);
+    font-weight: var(--fw-medium);
+    font-size: var(--fs-sm);
+    position: relative;
+    padding-bottom: 4px;
+}
+.nav-links a::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 0; height: 2px;
+    background: var(--clr-primary);
+    transition: width var(--transition);
+}
+.nav-links a:hover::after,
+.nav-links a.active::after { width: 100%; }
+
+#theme-toggle {
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border);
+    border-radius: var(--radius-sm);
+    padding: .4rem .6rem;
+    cursor: pointer;
+    font-size: var(--fs-lg);
+    transition: all var(--transition);
+    line-height: 1;
+}
+#theme-toggle:hover {
+    transform: rotate(20deg) scale(1.1);
+    box-shadow: var(--shadow-sm);
+}`;
+
+sources.js = `/* ============================================
+   script.js – Personal Profile Page
+   ============================================ */
+
+// ────────── DATA ──────────
+const skillsData = [
+    { name: 'Java',          icon: '☕', category: 'programming', level: 90 },
+    { name: 'Python',        icon: '🐍', category: 'programming', level: 85 },
+    { name: 'C/C++',         icon: '⚙️', category: 'programming', level: 70 },
+    { name: 'HTML5',         icon: '🌐', category: 'web',         level: 88 },
+    { name: 'CSS3',          icon: '🎨', category: 'web',         level: 85 },
+    { name: 'JavaScript',    icon: '⚡', category: 'web',         level: 80 },
+    { name: 'Scikit-learn',  icon: '🤖', category: 'ml',          level: 75 },
+    { name: 'SVM / LogReg',  icon: '📊', category: 'ml',          level: 72 },
+    { name: 'Data Analysis', icon: '📈', category: 'ml',          level: 70 },
+    { name: 'Arduino',       icon: '🔌', category: 'embedded',    level: 85 },
+    { name: 'MPU6050',       icon: '📡', category: 'embedded',    level: 78 },
+    { name: 'Sensors',       icon: '🔬', category: 'embedded',    level: 80 },
+    { name: 'Git',           icon: '🔀', category: 'tools',       level: 82 },
+    { name: 'Streamlit',     icon: '🚀', category: 'tools',       level: 75 },
+    { name: 'VS Code',       icon: '💻', category: 'tools',       level: 90 },
+];
+
+const projectsData = [
+    {
+        title: 'Smart Vocalizer',
+        desc: 'Gesture-to-speech communication system using Arduino and MPU6050. Translates hand gestures into spoken words to assist differently-abled individuals.',
+        tags: ['Arduino', 'MPU6050', 'Sensors', 'C++'],
+        color: 'linear-gradient(135deg, #6c3ce0, #8b5cf6)',
+        emoji: '🤖',
+    },
+    {
+        title: 'Disease Prediction System',
+        desc: 'ML-based web application that predicts diseases from patient symptoms using SVM and Logistic Regression models with high accuracy.',
+        tags: ['Python', 'Scikit-learn', 'Streamlit', 'ML'],
+        color: 'linear-gradient(135deg, #10b981, #34d399)',
+        emoji: '🧠',
+    },
+    {
+        title: 'EV Charging Platform',
+        desc: 'Java-based backend concept for an Electric Vehicle charging station locator and booking platform with user authentication.',
+        tags: ['Java', 'OOP', 'Backend'],
+        color: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
+        emoji: '⚡',
+    },
+];
+
+// ────────── DOM REFERENCES ──────────
+const navbar          = document.getElementById('navbar');
+const themeToggle     = document.getElementById('theme-toggle');
+const themeIcon       = themeToggle.querySelector('.theme-icon');
+const skillsGrid      = document.getElementById('skills-grid');
+const projectsGrid    = document.getElementById('projects-grid');
+const filterBtns      = document.querySelectorAll('.filter-btn');
+
+// About – Add fact
+const addFactBtn      = document.getElementById('add-fact-btn');
+const addFactForm     = document.getElementById('add-fact-form');
+const newFactInput    = document.getElementById('new-fact-input');
+const saveFactBtn     = document.getElementById('save-fact-btn');
+const cancelFactBtn   = document.getElementById('cancel-fact-btn');
+const factsList       = document.getElementById('facts-list');
+const factError       = document.getElementById('fact-error');
+
+// Contact form
+const contactForm     = document.getElementById('contact-form');
+const submitBtn       = document.getElementById('submit-btn');
+const formSuccess     = document.getElementById('form-success');
+const backToTopBtn    = document.getElementById('back-to-top');
+const toastContainer  = document.getElementById('toast-container');
+
+// ────────── UTILITIES ──────────
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = \`toast toast-\${type}\`;
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+function showError(el, msg, input) {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    if (input) input.classList.add('input-error');
+}
+
+function clearError(el, input) {
+    el.textContent = '';
+    el.classList.add('hidden');
+    if (input) input.classList.remove('input-error');
+}
+
+function isValidEmail(email) {
+    return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
+}
+
+// ────────── THEME TOGGLE ──────────
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    localStorage.setItem('profile-theme', theme);
+}
+
+(function initTheme() {
+    const saved = localStorage.getItem('profile-theme');
+    if (saved) {
+        applyTheme(saved);
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        applyTheme('dark');
+    }
+})();
+
+themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+// ────────── NAVBAR SCROLL EFFECT ──────────
+window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 60);
+    backToTopBtn.classList.toggle('visible', window.scrollY > 500);
+});
+
+backToTopBtn.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// ────────── HERO STAT COUNTER ANIMATION ──────────
+function animateCounters() {
+    document.querySelectorAll('.stat-number').forEach(el => {
+        const target = +el.getAttribute('data-target');
+        const duration = 1500;
+        const step = target / (duration / 16);
+        let current = 0;
+        const counter = setInterval(() => {
+            current += step;
+            if (current >= target) {
+                el.textContent = target + '+';
+                clearInterval(counter);
+            } else {
+                el.textContent = Math.floor(current) + '+';
+            }
+        }, 16);
+    });
+}
+
+const heroObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            animateCounters();
+            heroObserver.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.4 });
+heroObserver.observe(document.getElementById('hero'));
+
+// ────────── RENDER SKILLS ──────────
+function renderSkills(filter = 'all') {
+    const filtered = filter === 'all'
+        ? skillsData
+        : skillsData.filter(s => s.category === filter);
+
+    skillsGrid.innerHTML = '';
+
+    filtered.forEach((skill, i) => {
+        const card = document.createElement('div');
+        card.className = 'skill-card reveal';
+        card.style.transitionDelay = \`\${i * 60}ms\`;
+        card.innerHTML = \`
+            <span class="skill-icon">\${skill.icon}</span>
+            <span class="skill-name">\${skill.name}</span>
+            <span class="skill-level">
+                <span class="skill-level-fill" data-level="\${skill.level}"></span>
+            </span>
+        \`;
+        skillsGrid.appendChild(card);
+    });
+
+    requestAnimationFrame(() => {
+        document.querySelectorAll('#skills-grid .skill-card').forEach(c => c.classList.add('revealed'));
+        document.querySelectorAll('.skill-level-fill').forEach(bar => {
+            bar.style.width = bar.getAttribute('data-level') + '%';
+        });
+    });
+}
+
+filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderSkills(btn.getAttribute('data-filter'));
+    });
+});
+
+renderSkills();
+
+// ────────── RENDER PROJECTS ──────────
+function renderProjects() {
+    projectsGrid.innerHTML = '';
+    projectsData.forEach((proj, i) => {
+        const card = document.createElement('div');
+        card.className = 'project-card reveal';
+        card.style.transitionDelay = \`\${i * 120}ms\`;
+        card.innerHTML = \`
+            <div class="project-thumb" style="background: \${proj.color}">
+                <span style="position:relative;z-index:1">\${proj.emoji}</span>
+            </div>
+            <div class="project-body">
+                <h3 class="project-title">\${proj.title}</h3>
+                <p class="project-desc">\${proj.desc}</p>
+                <div class="project-tags">
+                    \${proj.tags.map(t => \`<span class="project-tag">\${t}</span>\`).join('')}
+                </div>
+            </div>
+        \`;
+        projectsGrid.appendChild(card);
+    });
+}
+renderProjects();
+
+// ────────── ADD FACT ──────────
+addFactBtn.addEventListener('click', () => {
+    addFactForm.classList.remove('hidden');
+    addFactBtn.classList.add('hidden');
+    newFactInput.focus();
+});
+
+cancelFactBtn.addEventListener('click', () => {
+    addFactForm.classList.add('hidden');
+    addFactBtn.classList.remove('hidden');
+    newFactInput.value = '';
+    clearError(factError, newFactInput);
+});
+
+saveFactBtn.addEventListener('click', () => {
+    const value = newFactInput.value.trim();
+    if (!value) {
+        showError(factError, 'Please enter a fun fact before saving.', newFactInput);
+        return;
+    }
+    if (value.length < 3) {
+        showError(factError, 'Fact must be at least 3 characters.', newFactInput);
+        return;
+    }
+    clearError(factError, newFactInput);
+    const li = document.createElement('li');
+    li.className = 'fact-item';
+    li.textContent = '✨ ' + value;
+    li.style.animation = 'fadeIn .5s ease';
+    factsList.appendChild(li);
+    newFactInput.value = '';
+    addFactForm.classList.add('hidden');
+    addFactBtn.classList.remove('hidden');
+    showToast('Fun fact added!');
+});
+
+newFactInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') saveFactBtn.click();
+});
+
+// ────────── CONTACT FORM ──────────
+contactForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nameInput    = document.getElementById('contact-name');
+    const emailInput   = document.getElementById('contact-email');
+    const subjectInput = document.getElementById('contact-subject');
+    const messageInput = document.getElementById('contact-message');
+    const nameErr    = document.getElementById('name-error');
+    const emailErr   = document.getElementById('email-error');
+    const subjectErr = document.getElementById('subject-error');
+    const messageErr = document.getElementById('message-error');
+    let isValid = true;
+
+    if (!nameInput.value.trim()) {
+        showError(nameErr, 'Name is required.', nameInput); isValid = false;
+    } else if (nameInput.value.trim().length < 2) {
+        showError(nameErr, 'Name must be at least 2 characters.', nameInput); isValid = false;
+    } else { clearError(nameErr, nameInput); }
+
+    if (!emailInput.value.trim()) {
+        showError(emailErr, 'Email is required.', emailInput); isValid = false;
+    } else if (!isValidEmail(emailInput.value.trim())) {
+        showError(emailErr, 'Please enter a valid email address.', emailInput); isValid = false;
+    } else { clearError(emailErr, emailInput); }
+
+    if (!subjectInput.value.trim()) {
+        showError(subjectErr, 'Subject is required.', subjectInput); isValid = false;
+    } else { clearError(subjectErr, subjectInput); }
+
+    if (!messageInput.value.trim()) {
+        showError(messageErr, 'Message is required.', messageInput); isValid = false;
+    } else if (messageInput.value.trim().length < 10) {
+        showError(messageErr, 'Message must be at least 10 characters.', messageInput); isValid = false;
+    } else { clearError(messageErr, messageInput); }
+
+    if (!isValid) { showToast('Please fix the errors above.', 'error'); return; }
+
+    const btnText   = submitBtn.querySelector('.btn-text');
+    const btnLoader = submitBtn.querySelector('.btn-loader');
+    btnText.classList.add('hidden');
+    btnLoader.classList.remove('hidden');
+    submitBtn.disabled = true;
+
+    setTimeout(() => {
+        btnText.classList.remove('hidden');
+        btnLoader.classList.add('hidden');
+        submitBtn.disabled = false;
+        formSuccess.classList.remove('hidden');
+        showToast('Message sent successfully! 🎉');
+        contactForm.reset();
+        setTimeout(() => formSuccess.classList.add('hidden'), 5000);
+    }, 1500);
+});
+
+['contact-name', 'contact-email', 'contact-subject', 'contact-message'].forEach(id => {
+    const input  = document.getElementById(id);
+    const errId  = id.replace('contact-', '') + '-error';
+    const errEl  = document.getElementById(errId);
+    input.addEventListener('input', () => clearError(errEl, input));
+});
+
+// ────────── SCROLL REVEAL ──────────
+const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('revealed');
+            revealObserver.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.15 });
+
+function initRevealObserver() {
+    document.querySelectorAll('.section-title, .about-grid, .project-card, .about-card').forEach(el => {
+        el.classList.add('reveal');
+        revealObserver.observe(el);
+    });
+}
+initRevealObserver();
+
+// ────────── FOOTER YEAR ──────────
+document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+// ────────── ACTIVE NAV LINK HIGHLIGHT ──────────
+const sections = document.querySelectorAll('.section');
+const navLinks = document.querySelectorAll('.nav-links a');
+
+const navObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            navLinks.forEach(link => {
+                link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id);
+            });
+        }
+    });
+}, { rootMargin: '-40% 0px -60% 0px' });
+
+sections.forEach(s => navObserver.observe(s));`;
+
+// ── ESCAPE HTML ─────────────────────────────────────────────
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── SIMPLE SYNTAX HIGHLIGHT ─────────────────────────────────
+function highlightHTML(code) {
+  return esc(code)
+    .replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="t-cmt">$1</span>')
+    .replace(/(&lt;\/?)([\w-]+)/g, '$1<span class="t-tag">$2</span>')
+    .replace(/([\w-]+)=(&quot;|")/g, '<span class="t-attr">$1</span>=<span class="t-val">"')
+    .replace(/(&quot;[^&]*&quot;)/g, '<span class="t-val">$1</span>');
+}
+
+function highlightCSS(code) {
+  return esc(code)
+    .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="t-cmt">$1</span>')
+    .replace(/([.#]?[\w-]+(?:\s*,\s*[.#]?[\w-]+)*)\s*\{/g, '<span class="t-sel">$1</span> {')
+    .replace(/([\w-]+)\s*:/g, '<span class="t-prop">$1</span>:')
+    .replace(/(#[0-9a-fA-F]{3,8})/g, '<span class="t-num">$1</span>')
+    .replace(/(\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%|s|deg|fr)?)/g, '<span class="t-num">$1</span>')
+    .replace(/(@\w[\w-]*)/g, '<span class="t-kw">$1</span>');
+}
+
+function highlightJS(code) {
+  const kw = /\b(const|let|var|function|return|if|else|for|forEach|new|this|document|window|setTimeout|setInterval|clearInterval|true|false|null|undefined|class|import|export|default)\b/g;
+  return esc(code)
+    .replace(/(\/\/[^\n]*)/g, '<span class="t-cmt">$1</span>')
+    .replace(/(`[^`]*`)/g, '<span class="t-str">$1</span>')
+    .replace(/('(?:[^'\\]|\\.)*')/g, '<span class="t-str">$1</span>')
+    .replace(/("(?:[^"\\]|\\.)*")/g, '<span class="t-str">$1</span>')
+    .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="t-num">$1</span>')
+    .replace(kw, '<span class="t-kw">$1</span>')
+    .replace(/\b([A-Z][a-zA-Z]*)\b/g, '<span class="t-cls">$1</span>')
+    .replace(/\b([\w$]+)\s*(?=\()/g, '<span class="t-fn">$1</span>');
+}
+
+// ── RENDER CODE WITH LINE NUMBERS ───────────────────────────
+function renderCode(type) {
+  const raw = sources[type];
+  const lines = raw.split('\n');
+  let highlighted;
+  if (type === 'html') highlighted = highlightHTML(raw).split('\n');
+  else if (type === 'css') highlighted = highlightCSS(raw).split('\n');
+  else highlighted = highlightJS(raw).split('\n');
+
+  const html = lines.map((_, i) =>
+    `<span class="line"><span class="ln">${i+1}</span><span class="lc">${highlighted[i] || ''}</span></span>`
+  ).join('\n');
+
+  document.getElementById('code-' + type).innerHTML = html;
+
+  // Stats
+  const chars = raw.length;
+  const words = raw.trim().split(/\s+/).length;
+  document.getElementById('stats-' + type).innerHTML =
+    `<span>${lines.length}</span> lines &nbsp;·&nbsp; <span>${chars.toLocaleString()}</span> chars &nbsp;·&nbsp; <span>${words.toLocaleString()}</span> tokens`;
+}
+
+// ── SWITCH TAB ──────────────────────────────────────────────
+function switchTab(type) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-tab="${type}"]`).classList.add('active');
+  document.querySelectorAll('.code-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + type).classList.add('active');
+}
+
+// ── COPY ────────────────────────────────────────────────────
+function copyCode(type) {
+  navigator.clipboard.writeText(sources[type]).then(() => {
+    const btn = document.getElementById('copy-' + type);
+    btn.classList.add('copied');
+    btn.innerHTML = '<span class="copy-icon">✓</span> Copied!';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<span class="copy-icon">⧉</span> Copy';
+    }, 2000);
+  });
+}
+
+// ── INIT ────────────────────────────────────────────────────
+renderCode('html');
+renderCode('css');
+renderCode('js');
+</script>
+</body>
+</html>
